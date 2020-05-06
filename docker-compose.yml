@@ -8,6 +8,8 @@ services:
       - db_store:/var/lib/mysql
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=1
+    networks:
+      - docker_rails_network
 
   app:
     build: .
@@ -16,9 +18,42 @@ services:
       - .:/myapp
     depends_on:
       - db
+      - sidekiq
     ports:
       - "3000:3000"
     stdin_open: true
     tty: true
+    networks:
+      - docker_rails_network
+    env_file: .env
+
+  redis:
+    image: redis:5.0.3
+    container_name: docker_rails_redis
+    volumes:
+      - redis_data:/data
+    networks:
+      - docker_rails_network
+
+  sidekiq:
+    build: .
+    container_name: docker_rails_sidekiq
+    command: bundle exec sidekiq
+    depends_on:
+      - redis
+      - db
+    volumes:
+      - .:/app
+      - bundle:/bundle
+    networks:
+      - docker_rails_network
+    env_file: .env
+
 volumes:
   db_store:
+  redis_data:
+  bundle:
+
+networks:
+  docker_rails_network:
+    driver: bridge
